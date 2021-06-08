@@ -1,0 +1,28 @@
+{
+    "name": "codememory/logging",
+    "description": "Logging",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Danil",
+            "email": "kostynd1@gmail.com"
+        }
+    ],
+    "require": {
+        "monolog/monolog": "^2.2",
+        "codememory/global-config": "^1.1",
+        "codememory/redis": "^1.0",
+        "codememory/date-time": "^1.0",
+        "codememory/config": "^1.1",
+        "codememory/support": "^1.2",
+        "ext-redis": "*"
+    },
+    "autoload": {
+        "psr-4": {
+            "Codememory\\Components\\Logging\\": ""
+        }
+    },
+    "require-dev": {
+        "symfony/var-dumper": "^5.3"
+    }
+}
