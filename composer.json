@@ -9,13 +9,13 @@
         }
     ],
     "require": {
-        "monolog/monolog": "^2.2",
+        "ext-redis": "*",
+        "codememory/config": "^2.0",
+        "codememory/date-time": "^1.0",
         "codememory/global-config": "^1.1",
         "codememory/redis": "^1.0",
-        "codememory/date-time": "^1.0",
-        "codememory/config": "^1.1",
         "codememory/support": "^1.2",
-        "ext-redis": "*"
+        "monolog/monolog": "^2.3"
     },
     "autoload": {
         "psr-4": {
@@ -24,5 +24,8 @@
     },
     "require-dev": {
         "symfony/var-dumper": "^5.3"
+    },
+    "config": {
+        "sort-packages": true
     }
 }
