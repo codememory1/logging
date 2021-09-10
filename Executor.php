@@ -5,11 +5,11 @@ namespace Codememory\Components\Logging;
 use Codememory\Components\Logging\Interfaces\LoggerDataInterface;
 use Codememory\Components\Profiling\Exceptions\BuilderNotCurrentSectionException;
 use Codememory\Components\Profiling\Profiler;
-use Monolog\Logger as MonologLogger;
-use Codememory\Components\Profiling\Sections\LoggingSection;
 use Codememory\Components\Profiling\ReportCreators\LoggingReportCreator;
-use Codememory\Components\Profiling\Sections\Builders\LoggingBuilder;
 use Codememory\Components\Profiling\Resource;
+use Codememory\Components\Profiling\Sections\Builders\LoggingBuilder;
+use Codememory\Components\Profiling\Sections\LoggingSection;
+use Monolog\Logger as MonologLogger;
 
 /**
  * Class Executor
@@ -37,6 +37,11 @@ class Executor
     }
 
     /**
+     * =>=>=>=>=>=>=>=>=>=>=>=>=>=>=>=>=>=>=>=>=>=>=>=>=>=>=>=>=>=>=>=>
+     * The main method that the logger executes and saves the given
+     * result to the profiler
+     * <=<=<=<=<=<=<=<=<=<=<=<=<=<=<=<=<=<=<=<=<=<=<=<=<=<=<=<=<=<=<=<=
+     *
      * @throws BuilderNotCurrentSectionException
      */
     public function execute(): void
@@ -61,6 +66,10 @@ class Executor
     }
 
     /**
+     * =>=>=>=>=>=>=>=>=>=>=>=>=>=>=>=>=>=>
+     * Adds extra data to the logger
+     * <=<=<=<=<=<=<=<=<=<=<=<=<=<=<=<=<=<=
+     *
      * @param MonologLogger $monologLogger
      * @param array         $loggerData
      *
@@ -78,6 +87,10 @@ class Executor
     }
 
     /**
+     * =>=>=>=>=>=>=>=>=>=>=>=>=>=>=>=>=>=>=>=>=>=>=>=>=>=>=>=>
+     * Saves the data of the running logger to the profiler
+     * <=<=<=<=<=<=<=<=<=<=<=<=<=<=<=<=<=<=<=<=<=<=<=<=<=<=<=<=
+     *
      * @param array $loggerData
      *
      * @return void
@@ -86,7 +99,7 @@ class Executor
     private function profiling(array $loggerData): void
     {
 
-        if(Profiler::isInit()) {
+        if (Profiler::isInit()) {
             $loggingSection = new LoggingSection(new Resource());
             $loggingBuilder = new LoggingBuilder();
             $loggingReportCreator = new LoggingReportCreator(null, $loggingSection);

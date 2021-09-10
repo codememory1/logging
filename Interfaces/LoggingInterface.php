@@ -16,24 +16,36 @@ interface LoggingInterface
 {
 
     /**
-     * @param string $name
-     * @param string $handlerName
-     * @param array  $handlerParameters
+     * =>=>=>=>=>=>=>=>=>=>=>=>=>=>=>=>=>=>
+     * Add new logger with information
+     * <=<=<=<=<=<=<=<=<=<=<=<=<=<=<=<=<=<=
+     *
+     * @param string $name              The name of the logger by which you can run it
+     * @param string $handlerName       The name of the handler that this logger will process
+     * @param array  $handlerParameters Parameters for the handler
      *
      * @return LoggerInterface
      */
     public function addLogger(string $name, string $handlerName, array $handlerParameters = []): LoggerInterface;
 
     /**
-     * @param string $name
-     * @param string $namespace
-     * @param int    $forLevel
+     * =>=>=>=>=>=>=>=>=>=>=>=>=>=>=>=>
+     * Add a handler for loggers
+     * <=<=<=<=<=<=<=<=<=<=<=<=<=<=<=<=
+     *
+     * @param string $name      The name of the handler that is specified for loggers
+     * @param string $namespace Namespace handler that implements the HandlerInterface interface
+     * @param int    $forLevel  Handler level that will be triggered only for loggers of this level
      *
      * @return LoggingInterface
      */
     public function addHandler(string $name, string $namespace, #[ExpectedValues(Logger::LEVELS)] int $forLevel): LoggingInterface;
 
     /**
+     * =>=>=>=>=>=>=>=>=>=>=>=>=>=>=>=>=>=>
+     * Check the existence of the logger
+     * <=<=<=<=<=<=<=<=<=<=<=<=<=<=<=<=<=<=
+     *
      * @param string $name
      *
      * @return bool
@@ -41,6 +53,10 @@ interface LoggingInterface
     public function existLogger(string $name): bool;
 
     /**
+     * =>=>=>=>=>=>=>=>=>=>=>=>=>=>=>=>=>=>=>=>=>=>=>=>=>=>=>=>=>=>=>=>=>=>=>=>=>=>
+     * Returns a logger into which you can assign or change data before sending
+     * <=<=<=<=<=<=<=<=<=<=<=<=<=<=<=<=<=<=<=<=<=<=<=<=<=<=<=<=<=<=<=<=<=<=<=<=<=<=
+     *
      * @param string $name
      *
      * @return Logger
@@ -48,6 +64,10 @@ interface LoggingInterface
     public function getLogger(string $name): Logger;
 
     /**
+     * =>=>=>=>=>=>=>=>=>=>=>=>=>=>=>=>=>=>
+     * Check the existence of the handler
+     * <=<=<=<=<=<=<=<=<=<=<=<=<=<=<=<=<=<=
+     *
      * @param string $name
      *
      * @return bool
@@ -55,6 +75,10 @@ interface LoggingInterface
     public function existHandler(string $name): bool;
 
     /**
+     * =>=>=>=>=>=>=>=>=>=>=>=>=>=>=>=>=>=>
+     * Returns the added handler object
+     * <=<=<=<=<=<=<=<=<=<=<=<=<=<=<=<=<=<=
+     *
      * @param string $name
      *
      * @return HandlerInterface
@@ -62,6 +86,10 @@ interface LoggingInterface
     public function getHandler(string $name): HandlerInterface;
 
     /**
+     * =>=>=>=>=>=>=>=>=>=>=>=>=>=>=>=>=>=>=>=>
+     * Execute added and configured logger
+     * <=<=<=<=<=<=<=<=<=<=<=<=<=<=<=<=<=<=<=<=
+     *
      * @param string $name
      *
      * @return LoggingInterface
