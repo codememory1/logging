@@ -9,12 +9,14 @@
         }
     ],
     "require": {
+        "ext-redis": "*",
         "php": ">=8.0",
         "codememory/config": "^2.0",
         "codememory/date-time": "^1.0",
         "codememory/fs": "^1.1",
         "codememory/global-config": "^1.1",
         "codememory/profiling": "^2.2",
+        "codememory/redis": "^1.0",
         "monolog/monolog": "^2.3"
     },
     "autoload": {
