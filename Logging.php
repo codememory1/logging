@@ -2,22 +2,24 @@
 
 namespace Codememory\Components\Logging;
 
-use Codememory\Components\DateTime\Exceptions\InvalidTimezoneException;
+use Codememory\Components\Logging\Exceptions\HandlerExistException;
+use Codememory\Components\Logging\Exceptions\HandlerNotExistException;
 use Codememory\Components\Logging\Exceptions\HandlerNotImplementInterfaceException;
-use Codememory\Components\Logging\Exceptions\InvalidHandlerTypeNameException;
-use Codememory\Components\Logging\Handlers\RedisHandler as CodememoryRedisHandler;
-use Codememory\Components\Logging\Handlers\StreamHandler as CodememoryFileHandler;
-use Codememory\Components\Logging\Interfaces\LoggingHandlerInterface;
+use Codememory\Components\Logging\Exceptions\LoggerExistException;
+use Codememory\Components\Logging\Exceptions\LoggerNotExistException;
+use Codememory\Components\Logging\Exceptions\LogLevelNotExistException;
+use Codememory\Components\Logging\Interfaces\HandlerInterface;
+use Codememory\Components\Logging\Interfaces\LoggerInterface;
 use Codememory\Components\Logging\Interfaces\LoggingInterface;
-use Codememory\Components\Logging\Logger as CodememoryLogger;
-use Codememory\Components\Logging\Utils as LoggingUtils;
-use Monolog\Logger as MonologLogger;
-use Psr\Log\LoggerInterface as PsrLoggerInterface;
+use Codememory\Components\Profiling\Exceptions\BuilderNotCurrentSectionException;
+use JetBrains\PhpStorm\ExpectedValues;
+use LogicException;
 use ReflectionClass;
 use ReflectionException;
 
 /**
  * Class Logging
+ *
  * @package Codememory\Components\Logging
  *
  * @author  Codememory
@@ -25,47 +27,87 @@ use ReflectionException;
 class Logging implements LoggingInterface
 {
 
-    public const REDIS_HANDLER = 'redis';
-    public const STREAM_HANDLER = 'stream';
+    /**
+     * @var array
+     */
+    private array $loggers = [];
 
     /**
      * @var array
      */
-    private array $loggingTypes = [
-        self::REDIS_HANDLER  => CodememoryRedisHandler::class,
-        self::STREAM_HANDLER => CodememoryFileHandler::class
-    ];
+    private array $handlers = [];
 
     /**
-     * @var LoggingUtils
-     */
-    private LoggingUtils $utils;
-
-    /**
-     * Logging constructor.
+     * @throws HandlerExistException
+     * @throws HandlerNotExistException
+     * @throws HandlerNotImplementInterfaceException
+     * @throws LogLevelNotExistException
+     * @throws LoggerExistException
+     * @throws ReflectionException
      */
     public function __construct()
     {
 
-        $this->utils = new LoggingUtils();
+        $utils = new Utils();
+
+        $this->registerHandlersFromConfig($utils);
+        $this->registerLoggersFromConfig($utils);
 
     }
 
     /**
      * @inheritDoc
-     * @throws HandlerNotImplementInterfaceException
-     * @throws ReflectionException
+     * @throws HandlerNotExistException
+     * @throws LoggerExistException
      */
-    public function addType(string $name, string $loggingHandlerNamespace): LoggingInterface
+    public function addLogger(string $name, string|array $handlerName, array $handlerParameters = []): LoggerInterface
     {
 
-        $reflector = new ReflectionClass($loggingHandlerNamespace);
-
-        if (!$reflector->implementsInterface(LoggingHandlerInterface::class)) {
-            throw new HandlerNotImplementInterfaceException(LoggingHandlerInterface::class);
+        if ($this->existLogger($name)) {
+            throw new LoggerExistException($name);
         }
 
-        $this->loggingTypes[$name] = $loggingHandlerNamespace;
+        $handlers = array_map(function (string $handlerName) use ($handlerParameters) {
+            return $this->getHandler($handlerName)->setParameters($handlerParameters);
+        }, is_string($handlerName) ? [$handlerName] : $handlerName);
+
+        $logger = new Logger($name, $handlers);
+
+        $this->loggers[$name] = $logger;
+
+        return $logger;
+
+    }
+
+    /**
+     * @inheritDoc
+     * @throws HandlerExistException
+     * @throws HandlerNotImplementInterfaceException
+     * @throws LogLevelNotExistException
+     * @throws ReflectionException
+     */
+    public function addHandler(string $name, string $namespace, #[ExpectedValues(Logger::LEVELS)] int $forLevel): LoggingInterface
+    {
+
+        if ($this->existHandler($name)) {
+            throw new HandlerExistException($name, $namespace);
+        }
+
+        if (!class_exists($namespace)) {
+            throw new LogicException(sprintf('The %s handler being added was not found by namespace %s', $name, $namespace));
+        }
+
+        if (!in_array($forLevel, Logger::LEVELS)) {
+            throw new LogLevelNotExistException($name, $forLevel);
+        }
+
+        $reflector = new ReflectionClass($namespace);
+
+        if (!$reflector->implementsInterface(HandlerInterface::class)) {
+            throw new HandlerNotImplementInterfaceException($name, $namespace);
+        }
+
+        $this->handlers[$name] = $reflector->newInstance($forLevel);
 
         return $this;
 
@@ -73,44 +115,112 @@ class Logging implements LoggingInterface
 
     /**
      * @inheritDoc
-     * @throws InvalidHandlerTypeNameException
-     * @throws InvalidTimezoneException
      */
-    public function createLogger(string $name): PsrLoggerInterface|MonologLogger
+    public function existLogger(string $name): bool
     {
 
-        $loggerData = $this->utils->getLogger($name);
-
-        $codememoryLogger = new CodememoryLogger($name, $loggerData);
-
-        $handler = $this->getHandlerByName($loggerData['type']);
-        $handler->setUtils($this->utils, $name);
-
-        return $codememoryLogger->getMonologLogger($handler);
+        return array_key_exists($name, $this->loggers);
 
     }
 
     /**
-     * =>=>=>=>=>=>=>=>=>=>=>=>=>=>=>=>=>=>=>=>=>=>=>=>=>=>
-     * Returns a log storage handler object by its type
-     * <=<=<=<=<=<=<=<=<=<=<=<=<=<=<=<=<=<=<=<=<=<=<=<=<=<=
-     *
-     * @param string $typeName
-     *
-     * @return bool|LoggingHandlerInterface
-     * @throws InvalidHandlerTypeNameException
+     * @inheritDoc
+     * @throws LoggerNotExistException
      */
-    private function getHandlerByName(string $typeName): bool|LoggingHandlerInterface
+    public function getLogger(string $name): Logger
     {
 
-        if (array_key_exists($typeName, $this->loggingTypes)) {
-            $handlerNamespace = $this->loggingTypes[$typeName];
-
-            return new $handlerNamespace();
-        }
-
-        throw new InvalidHandlerTypeNameException($typeName);
+        return $this->loggers[$name] ?? throw new LoggerNotExistException($name);
 
     }
+
+    /**
+     * @inheritDoc
+     */
+    public function existHandler(string $name): bool
+    {
+
+        return array_key_exists($name, $this->handlers);
+
+    }
+
+    /**
+     * @inheritDoc
+     * @throws HandlerNotExistException
+     */
+    public function getHandler(string $name): HandlerInterface
+    {
+
+        if (!$this->existHandler($name)) {
+            throw new HandlerNotExistException($name);
+        }
+
+        return $this->handlers[$name];
+
+    }
+
+    /**
+     * @inheritDoc
+     * @throws LoggerNotExistException
+     * @throws BuilderNotCurrentSectionException
+     */
+    public function executeLogger(string $name): LoggingInterface
+    {
+
+        $executor = new Executor($this->getLogger($name));
+
+        $executor->execute();
+
+        return $this;
+
+    }
+
+    /**
+     * @param Utils $utils
+     *
+     * @return void
+     * @throws HandlerExistException
+     * @throws HandlerNotImplementInterfaceException
+     * @throws LogLevelNotExistException
+     * @throws ReflectionException
+     */
+    private function registerHandlersFromConfig(Utils $utils): void
+    {
+
+        foreach ($utils->getHandlers() as $handlerName => $handlerData) {
+            $this->addHandler($handlerName, $handlerData['handler'], $handlerData['forLevel']);
+        }
+
+    }
+
+    /**
+     * @param Utils $utils
+     *
+     * @return void
+     * @throws HandlerNotExistException
+     * @throws LoggerExistException
+     */
+    private function registerLoggersFromConfig(Utils $utils): void
+    {
+
+        foreach ($utils->getLoggers() as $loggerName => $loggerData) {
+            $handlerName = $loggerData['handlerName'];
+            $handlerParameters = $loggerData['handlerParameters'];
+
+            if (!$loggerData['forRun']) {
+                $this->addLogger($loggerName, $handlerName, $handlerParameters);
+            } else {
+                $level = $loggerData['level'];
+                $message = $loggerData['message'];
+                $context = $loggerData['context'];
+                $extra = $loggerData['extra'];
+
+                $this->addLogger($loggerName, $handlerName, $handlerParameters)
+                    ->$level($message, $context)->addExtra($extra);
+            }
+        }
+
+    }
+
 
 }

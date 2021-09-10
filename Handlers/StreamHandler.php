@@ -2,46 +2,32 @@
 
 namespace Codememory\Components\Logging\Handlers;
 
-use Codememory\Components\GlobalConfig\GlobalConfig;
 use Codememory\FileSystem\File;
-use Codememory\FileSystem\Interfaces\FileInterface;
 use Monolog\Handler\HandlerInterface as MonologHandlerInterface;
 use Monolog\Handler\StreamHandler as MonologStreamHandler;
 
 /**
  * Class StreamHandler
+ *
  * @package Codememory\Components\Logging\Handlers
  *
  * @author  Codememory
  */
-class StreamHandler extends AbstractLoggingHandler
+class StreamHandler extends AbstractHandler
 {
 
-    /**
-     * @var FileInterface
-     */
-    private FileInterface $filesystem;
-
-    /**
-     * StreamHandler constructor.
-     */
-    public function __construct()
-    {
-
-        $this->filesystem = new File();
-
-    }
+    private const DEFAULT_FILENAME = 'logs.log';
 
     /**
      * @inheritDoc
-     * @return MonologHandlerInterface
      */
-    public function getHandler(): MonologHandlerInterface
+    public function process(): MonologHandlerInterface
     {
 
-        $pathForSaveLog = $this->loggerData['path'] ?? GlobalConfig::get('logging.pathToLogger');
+        $filesystem = new File();
+        $path = $this->parameters['path'] ?? self::DEFAULT_FILENAME;
 
-        return new MonologStreamHandler($this->filesystem->getRealPath($pathForSaveLog), $this->getLevel());
+        return new MonologStreamHandler($filesystem->getRealPath($path), $this->forLevel);
 
     }
 

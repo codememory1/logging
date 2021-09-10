@@ -1,4 +1,0 @@
-logging:
-  configName: logger
-  defaultType: file
-  pathToLogger: storage/logs/loggers.log

@@ -5,12 +5,13 @@ namespace Codememory\Components\Logging;
 use Codememory\Components\Configuration\Configuration;
 use Codememory\Components\Configuration\Interfaces\ConfigInterface;
 use Codememory\Components\GlobalConfig\GlobalConfig;
-use Codememory\Support\Arr;
 use Codememory\Support\Str;
 use JetBrains\PhpStorm\ArrayShape;
+use JetBrains\PhpStorm\Pure;
 
 /**
  * Class Utils
+ *
  * @package Codememory\Components\Logging
  *
  * @author  Codememory
@@ -18,8 +19,8 @@ use JetBrains\PhpStorm\ArrayShape;
 class Utils
 {
 
-    private const DEFAULT_TYPE = 'file';
-    private const DEFAULT_LEVEL = 'debug';
+    private const DEFAULT_HANDLER_LEVEL = 'ERROR';
+    private const DEFAULT_LOG_LEVEL = 'error';
 
     /**
      * @var ConfigInterface
@@ -27,26 +28,28 @@ class Utils
     private ConfigInterface $config;
 
     /**
-     * Utils constructor.
+     * Utils Construct
      */
     public function __construct()
     {
 
-        $this->config = Configuration::getInstance()->open(GlobalConfig::get('logging.configName'), $this->defaultConfig());
+        $this->config = Configuration::getInstance()->open(GlobalConfig::get('logging.configName'));
 
     }
 
     /**
-     * @return string[]
+     * @return array
      */
-    #[ArrayShape(['dateTimeFormat' => "string", 'recordingFormat' => "string"])]
-    public function generalConfig(): array
+    public function getHandlers(): array
     {
 
-        return $this->getStructureGeneral(
-            $this->config->get('_general.dateTimeFormat'),
-            $this->config->get('_general.recordingFormat')
-        );
+        $handlers = [];
+
+        foreach ($this->config->get('handlers') as $name => $handler) {
+            $handlers[$name] = $this->getStructureHandler($handler['handler'] ?? null, $handler['forLevel'] ?? null);
+        }
+
+        return $handlers;
 
     }
 
@@ -58,8 +61,16 @@ class Utils
 
         $loggers = [];
 
-        foreach ($this->config->get('_loggers') as $name => $loggerData) {
-            $loggers[$name] = $this->getLogger($name);
+        foreach ($this->config->get('loggers') as $loggerName => $logger) {
+            $loggers[$loggerName] = $this->getStructureLogger(
+                $logger['forRun'] ?? false,
+                $logger['handlerName'] ?? '',
+                $logger['level'] ?? self::DEFAULT_LOG_LEVEL,
+                $logger['message'] ?? null,
+                $logger['context'] ?? [],
+                $logger['extra'] ?? [],
+                $logger['handlerParameters'] ?? []
+            );
         }
 
         return $loggers;
@@ -67,97 +78,73 @@ class Utils
     }
 
     /**
-     * @param string $loggerName
+     * @param string|null $handler
+     * @param string|null $handlerLevel
      *
      * @return array
      */
-    public function getLogger(string $loggerName): array
+    #[Pure]
+    #[ArrayShape([
+        'handler'  => "null|string",
+        'forLevel' => "int"
+    ])]
+    private function getStructureHandler(?string $handler = null, ?string $handlerLevel = null): array
     {
 
-        $loggerOfConfig = $this->config->get(sprintf('_loggers.%s', $loggerName)) ?: false;
-        $loggerData = [];
-
-        if (false !== $loggerOfConfig) {
-            $loggerData = $this->formationLoggerData(
-                $loggerOfConfig['type'] ?? self::DEFAULT_TYPE,
-                $loggerOfConfig['level'] ?? self::DEFAULT_LEVEL,
-                $loggerOfConfig['dateTimeFormat'] ?? $this->generalConfig()['dateTimeFormat'],
-                $this->formattingRecordingFormat($loggerOfConfig['recordingFormat'] ?? $this->generalConfig()['recordingFormat'])
-            );
-
-            Arr::merge($loggerData, array_diff_key($loggerOfConfig, $loggerData));
-        }
-
-        return $loggerData;
+        return [
+            'handler'  => $handler,
+            'forLevel' => $this->getLevelCode($handlerLevel ?: self::DEFAULT_HANDLER_LEVEL)
+        ];
 
     }
 
     /**
-     * @param string $type
+     * @param bool        $forRun
+     * @param string      $handlerName
+     * @param string      $level
+     * @param string|null $message
+     * @param array       $context
+     * @param array       $extra
+     * @param array       $handlerParameters
+     *
+     * @return array
+     */
+    #[ArrayShape([
+        'forRun'            => "bool",
+        'handlerName'       => "string",
+        'level'             => "string",
+        'message'           => "null",
+        'context'           => "array",
+        'extra'             => "array",
+        'handlerParameters' => "array"
+    ])]
+    private function getStructureLogger(bool $forRun = false, string $handlerName = '', string $level = 'error', ?string $message = null, array $context = [], array $extra = [], array $handlerParameters = []): array
+    {
+
+        return [
+            'forRun'            => $forRun,
+            'handlerName'       => $handlerName,
+            'level'             => $level,
+            'message'           => $message,
+            'context'           => $context,
+            'extra'             => $extra,
+            'handlerParameters' => $handlerParameters
+        ];
+
+    }
+
+    /**
      * @param string $level
-     * @param string $dateFormat
-     * @param string $recordingFormat
      *
-     * @return array
+     * @return int
      */
-    #[ArrayShape(['type' => "string", 'level' => "string", 'dateTimeFormat' => "string", 'recordingFormat' => "string"])]
-    private function formationLoggerData(string $type, string $level, string $dateFormat, string $recordingFormat): array
+    #[Pure]
+    private function getLevelCode(string $level): int
     {
 
-        return [
-            'type'            => $type,
-            'level'           => $level,
-            'dateTimeFormat'  => $dateFormat,
-            'recordingFormat' => $recordingFormat
-        ];
+        $level = Str::toUppercase($level);
 
-    }
-
-    /**
-     * @param string $dateFormat
-     * @param string $recordingFormat
-     *
-     * @return string[]
-     */
-    #[ArrayShape(['dateTimeFormat' => "string", 'recordingFormat' => "string"])]
-    private function getStructureGeneral(string $dateFormat, string $recordingFormat): array
-    {
-
-        return [
-            'dateTimeFormat'  => $dateFormat,
-            'recordingFormat' => $recordingFormat
-        ];
-
-    }
-
-    /**
-     * @param string $recordingFormat
-     *
-     * @return string
-     */
-    private function formattingRecordingFormat(string $recordingFormat): string
-    {
-
-        Str::replace($recordingFormat, '*', '%');
-
-        return $recordingFormat;
-
-    }
-
-    /**
-     * @return string[]
-     */
-    #[ArrayShape(['_general' => "string[]", '_loggers' => "array"])]
-    private function defaultConfig(): array
-    {
-
-        return [
-            '_general' => $this->getStructureGeneral(
-                'Y-m-d H:i:s',
-                '[*datetime*] *message*.*level_name* *context* *extra*\n'
-            ),
-            '_loggers' => []
-        ];
+        return constant(sprintf('%s::%s', Logger::class, $level));
 
     }
 
